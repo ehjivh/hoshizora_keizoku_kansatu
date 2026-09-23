@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>星空の明るさ調査 マップ可視化</title>
+
+    <!-- MapLibre GL JS -->
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+
+      .map-overlay {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        z-index: 1;
+        width: 280px;
+      }
+
+      .map-overlay h3 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 16px;
+        color: #333;
+      }
+
+      .map-overlay label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #555;
+      }
+
+      .map-overlay input[type="radio"] {
+        margin-right: 8px;
+      }
+
+      .mapboxgl-popup-content {
+        width: 320px;
+        max-width: 350px;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      .popup-title {
+        margin: 0 0 5px 0;
+        font-size: 15px;
+        color: #333;
+      }
+
+      .popup-desc {
+        margin: 0 0 10px 0;
+        font-size: 12px;
+        color: #666;
+      }
+
+      .popup-info {
+        margin: 0 0 5px 0;
+        font-size: 13px;
+        color: #444;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <div class="map-overlay">
+      <h3>表示レイヤー</h3>
+      <label>
+        <input type="radio" name="layer-toggle" value="continuous" checked />
+        <span>継続観察登録地点<br /><small style="color: #888">(クリックで時系列グラフ表示)</small></span>
+      </label>
+      <label>
+        <input type="radio" name="layer-toggle" value="all" />
+        <span>すべての観測地点<br /><small style="color: #888">(クリックで詳細情報表示)</small></span>
+      </label>
+    </div>
+
+    <script>
+      // マップの初期化 (OpenStreetMapの標準タイルを使用)
+      const map = new maplibregl.Map({
+        container: "map",
+        style: {
+          version: 8,
+          sources: {
+            osm: {
+              type: "raster",
+              tiles: ["https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"],
+              tileSize: 256,
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            },
+          },
+          layers: [
+            {
+              id: "osm-layer",
+              type: "raster",
+              source: "osm",
+              minzoom: 0,
+              maxzoom: 19,
+            },
+          ],
+        },
+        center: [137.0, 38.0], // 日本全体が見える位置
+        zoom: 4.5,
+        pitch: 0,
+      });
+
+      // ズームコントロール追加
+      map.addControl(new maplibregl.NavigationControl());
+
+      let chartInstance = null;
+
+      map.on("load", () => {
+        // すべての観測地点データのソース追加
+        map.addSource("all_points", {
+          type: "geojson",
+          data: "./geojson/all_points.geojson",
+        });
+
+        // 継続観察登録地点データのソース追加
+        map.addSource("continuous_points", {
+          type: "geojson",
+          data: "./geojson/continuous_points.geojson",
+        });
+
+        // すべての観測地点レイヤー（初期状態は非表示）
+        map.addLayer({
+          id: "all_points_layer",
+          type: "circle",
+          source: "all_points",
+          layout: {
+            visibility: "none",
+          },
+          paint: {
+            "circle-radius": 4,
+            "circle-color": "#4287f5", // 青系
+            "circle-opacity": 0.5,
+            "circle-stroke-width": 1,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+
+        // 継続観察登録地点レイヤー（初期状態は表示）
+        map.addLayer({
+          id: "continuous_points_layer",
+          type: "circle",
+          source: "continuous_points",
+          layout: {
+            visibility: "visible",
+          },
+          paint: {
+            "circle-radius": 6,
+            "circle-color": "#f5a742", // オレンジ系
+            "circle-opacity": 0.8,
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+
+        // ラジオボタンでのレイヤー切り替え処理
+        document.querySelectorAll('input[name="layer-toggle"]').forEach((radio) => {
+          radio.addEventListener("change", (e) => {
+            const value = e.target.value;
+            if (value === "continuous") {
+              map.setLayoutProperty("continuous_points_layer", "visibility", "visible");
+              map.setLayoutProperty("all_points_layer", "visibility", "none");
+            } else {
+              map.setLayoutProperty("continuous_points_layer", "visibility", "none");
+              map.setLayoutProperty("all_points_layer", "visibility", "visible");
+            }
+          });
+        });
+
+        // 継続観察登録地点をクリックした時の処理（時系列グラフの表示）
+        map.on("click", "continuous_points_layer", (e) => {
+          const props = e.features[0].properties;
+          const coords = e.features[0].geometry.coordinates.slice();
+
+          // GeoJSONプロパティ内に文字列として格納されているJSONをパース
+          let timeSeries = [];
+          try {
+            timeSeries = JSON.parse(props["時系列データ"]);
+          } catch (err) {
+            console.error("Failed to parse time series data", err);
+          }
+
+          // グラフ用に古い順に並び替え（元データは新しい順にソートされているため）
+          timeSeries.reverse();
+
+          const labels = timeSeries.map((d) => d["調査時期"]);
+          const dataBrightness = timeSeries.map((d) => d["夜空の明るさ_平均"]);
+
+          const locationName = props["撮影場所"] && props["撮影場所"] !== "null" ? props["撮影場所"] : "詳細な場所名なし";
+
+          const popupHtml = `
+                  <div>
+                      <h4 class="popup-title">${props["都道府県"] || ""} ${props["市区町村"] || ""}</h4>
+                      <p class="popup-desc">${locationName}</p>
+                      <canvas id="brightnessChart" width="300" height="180"></canvas>
+                  </div>
+              `;
+
+          new maplibregl.Popup({ closeOnClick: false })
+            .setLngLat(coords)
+            .setHTML(popupHtml)
+            .on("open", () => {
+              // ポップアップが開いた直後にChart.jsでグラフを描画
+              const ctx = document.getElementById("brightnessChart").getContext("2d");
+
+              // 以前のチャートインスタンスがあれば破棄する
+              if (chartInstance) {
+                chartInstance.destroy();
+              }
+
+              chartInstance = new Chart(ctx, {
+                type: "line",
+                data: {
+                  labels: labels,
+                  datasets: [
+                    {
+                      label: '夜空の明るさ (mag/□")',
+                      data: dataBrightness,
+                      borderColor: "#f5a742",
+                      backgroundColor: "rgba(245, 167, 66, 0.2)",
+                      borderWidth: 2,
+                      pointRadius: 4,
+                      pointBackgroundColor: "#f5a742",
+                      fill: true,
+                      tension: 0.2, // 少し曲線をなめらかに
+                    },
+                  ],
+                },
+                options: {
+                  responsive: true,
+                  animation: { duration: 500 },
+                  scales: {
+                    y: {
+                      // 星空の明るさは等級。値が大きいほど暗い（良好）。
+                      beginAtZero: false,
+                      title: { display: true, text: '明るさ (mag/□")' },
+                    },
+                    x: {
+                      ticks: { maxRotation: 45, minRotation: 45 },
+                    },
+                  },
+                  plugins: {
+                    legend: { display: false }, // 凡例は隠す（ラベルがあるため）
+                    tooltip: {
+                      callbacks: {
+                        label: function (context) {
+                          return `${context.raw} mag/□"`;
+                        },
+                      },
+                    },
+                  },
+                },
+              });
+            })
+            .addTo(map);
+        });
+
+        // すべての観測地点をクリックした時の処理（詳細情報の表示）
+        map.on("click", "all_points_layer", (e) => {
+          const props = e.features[0].properties;
+          const coords = e.features[0].geometry.coordinates.slice();
+
+          const locationName = props["撮影場所"] ? props["撮影場所"] : "詳細な場所名なし";
+
+          const popupHtml = `
+                  <div>
+                      <h4 class="popup-title">${props["都道府県"] || ""} ${props["市区町村"] || ""}</h4>
+                      <p class="popup-desc">${locationName}</p>
+                      <p class="popup-info"><strong>調査時期:</strong> ${props["調査時期"] || "-"}</p>
+                      <p class="popup-info"><strong>明るさ:</strong> ${props["夜空の明るさ"] || "-"} mag/□"</p>
+                      <p class="popup-info"><strong>撮影日時:</strong> ${props["撮影日時"] || "-"}</p>
+                  </div>
+              `;
+
+          new maplibregl.Popup().setLngLat(coords).setHTML(popupHtml).addTo(map);
+        });
+
+        // マウスホバー時のカーソル変更処理
+        map.on("mouseenter", "continuous_points_layer", () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", "continuous_points_layer", () => {
+          map.getCanvas().style.cursor = "";
+        });
+        map.on("mouseenter", "all_points_layer", () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", "all_points_layer", () => {
+          map.getCanvas().style.cursor = "";
+        });
+      });
+    </script>
+  </body>
+</html>
