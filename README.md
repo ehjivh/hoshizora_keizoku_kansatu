@@ -116,3 +116,30 @@ Done.
 - `formatToIso8601()`: 日時文字列のISO 8601パース処理
 - `collectContinuousData()`: 継続観察地点の識別と集約
 - `exportContinuousGeoJson()`: 備考判定を含むデータクレンジングと平均値集計処理
+
+## 基本統計量の算出機能 (`stats.php`)
+
+観測データ (`geojson/all_points.geojson`) を元に、地方別・県別・市町村別に夜空の明るさに関する基本統計量（データ数、平均値、標準偏差、最小値、最大値）を算出し、CSVおよびGeoJSON形式で出力する機能を提供します。
+
+### 出力ファイル
+- `stats.csv` (任意): コマンド実行時に標準出力をリダイレクトして保存されるCSVファイル。各地域の基本統計量が一覧化されます。
+- `stats.json`: 各地域の基本統計量が階層化されて保存されるJSONデータ。
+- `geojson/stats_pref.geojson`: 県別の集計結果をプロパティに持つポリゴンGeoJSONデータ。
+- `geojson/stats_city.geojson`: 市町村別の集計結果をプロパティに持つポリゴンGeoJSONデータ。
+
+### 実行方法
+```bash
+php stats.php > stats.csv
+```
+
+### 境界データとクレジット表記について
+
+本機能でGeoJSON出力に使用している県境データ（`prefectures.json`）および市町村境データ（`N03-21_210101.json`）のポリゴンデータは、以下のリポジトリからダウンロードして利用しています。
+
+* **データ提供元**: [SmartNews Media Research Institute (smartnews-smri/japan-topography)](https://github.com/smartnews-smri/japan-topography)
+
+**【クレジット・二次利用時の注意】**
+これらの境界データの元データは、国土交通省が提供する「国土数値情報」です。本プログラムの出力データ（地図やGeoJSON）を外部に公開・二次利用する際は、国土交通省の利用規約に従い、以下のようなクレジット表記（出典の明記）を行う必要があります。
+
+* **表記例**: 「出典：国土交通省 国土数値情報（行政区域データ）を加工して作成」
+* 詳しくは、提供元リポジトリの規定、および [国土数値情報の利用約款](https://nlftp.mlit.go.jp/ksj/other/yakkan.html) をご確認ください。
