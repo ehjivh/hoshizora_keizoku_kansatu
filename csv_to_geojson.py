@@ -98,6 +98,8 @@ class CsvToGeoJsonConverter:
                 h = '継続観察登録地点'
             elif re.search(r'^夜空の.*明るさ', h):
                 h = '夜空の明るさ'
+            elif re.match(r'^市区?町村(名)?$', h):
+                h = '市町村名'
             normalized.append(h)
         return normalized
 
@@ -266,7 +268,7 @@ class CsvToGeoJsonConverter:
                 },
                 'properties': {
                     '都道府県': first_data.get('都道府県'),
-                    '市区町村': first_data.get('市区町村') or first_data.get('市町村'),
+                    '市町村名': first_data.get('市町村名'),
                     '撮影場所': first_data.get('撮影場所') or None,
                     '時系列データ': time_series
                 }

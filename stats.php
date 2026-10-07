@@ -69,7 +69,7 @@ foreach ($data['features'] as $feature) {
     
     // プロパティ名の揺れに対応
     $pref = $props['都道府県'] ?? $props['都道府県名'] ?? null;
-    $city = $props['市町村'] ?? $props['市町村名'] ?? null;
+    $city = $props['市町村'] ?? $props['市町村名'] ?? $props['市区町村'] ?? null;
     $brightnessStr = $props['夜空の明るさ'] ?? null;
 
     // 欠損データ、および数値として評価できないデータの除外

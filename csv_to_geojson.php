@@ -176,6 +176,7 @@ class CsvToGeoJsonConverter
             if (preg_match('/^No\.?$/', $h)) return 'No';
             if (preg_match('/^継続観察.*登録地点$/', $h)) return '継続観察登録地点';
             if (preg_match('/^夜空の.*明るさ/', $h)) return '夜空の明るさ';
+            if (preg_match('/^市区?町村(名)?$/', $h)) return '市町村名';
             return $h;
         }, $headers);
     }
@@ -416,7 +417,7 @@ class CsvToGeoJsonConverter
                 ],
                 'properties' => [
                     '都道府県' => $firstData['都道府県'] ?? null,
-                    '市区町村' => $firstData['市区町村'] ?? ($firstData['市町村'] ?? null),
+                    '市町村名' => $firstData['市町村名'] ?? null,
                     '撮影場所' => $firstData['撮影場所'] ?: null,
                     '時系列データ' => $timeSeries,
                 ],
